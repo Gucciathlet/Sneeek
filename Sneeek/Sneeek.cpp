@@ -6,6 +6,7 @@
 #define HEIGHT 30
 #define WIDTH 60
 
+
 //Reset Field 
 int clear_field(char** playground)
 {
@@ -27,14 +28,20 @@ int clear_field(char** playground)
 //Draw Field
 int draw_field(char** playground)
 {
+	char output_string[HEIGHT * (WIDTH + 1) + 1];
+	int b = 0;
+	int a = 0;
+
 	for (int a = 0; a < HEIGHT; a++)
 	{
-		for (int b = 0; b < WIDTH; b++)
+		for (b = 0; b < WIDTH; b++)
 		{
-			printf("%c", playground[a][b]);
+			output_string[a * (WIDTH + 1) + b] = playground[a][b];
 		}
-		printf("\n");
+		output_string[a * (WIDTH + 1) + WIDTH ] = '\n';
 	}
+	output_string[(WIDTH + 1) * HEIGHT ] = '\0';
+	printf("%s", output_string);
 	return 0;
 }
 //Generate Food
@@ -61,55 +68,79 @@ enum Direction
 //movement of sneek
 int movement(sneeekpos& pos, Direction dir, char** playground)
 {
-	switch (dir)
-	{
-	case up:
-		pos.y--;
-		break;
 
-	case left:
-		pos.x--;
-		break;
+		switch (dir)
+		{
+		case up:
+			pos.y--;
+			break;
 
-	case right:
-		pos.x++;
-		break;
+		case left:
+			pos.x--;
+			break;
 
-	case down:
-		pos.y++;
-		break;
+		case right:
+			pos.x++;
+			break;
 
-	default:
-		break;
-	}
+		case down:
+			pos.y++;
+			break;
+
+		default:
+			break;
+		}
 	return 0;
 }
 //input from user
-Direction get_input()
+Direction get_input(char &old_input)
 {
 	while (true)
 	{
 		char input = _getch();
+
 		switch (input)
 		{
-			// W & 8
+				// W & 8
 		case 119:
 		case 56:
-			return up;
+			if (old_input == 115 || old_input == 50)
+			{
+				return down;
+			}else
+				old_input = input;
+				return up;
 
 			// S & 2
 		case 115:
 		case 50:
+			if (old_input == 119 || old_input == 56)
+			{
+				return up;
+			}
+			old_input = input;
 			return down;
 
 			// A & 4
 		case 97:
 		case 52:
+			if (old_input == 100 || old_input == 54)
+			{
+				return right;
+			}
+			else
+			old_input = input;
 			return left;
 
 			// D & 6
 		case 100:
 		case 54:
+			if (old_input == 97 || old_input == 52)
+			{
+				return left;
+			}
+			else
+			old_input = input;
 			return right;
 
 		default:
@@ -127,62 +158,114 @@ bool death_check(char** playground, sneeekpos pos)
 	}
 	return false;
 }
+// 1 Length sneak drawing 
+int sneeek_draw(char** playground, sneeekpos pos, Direction dir, int &length_change)
+{
+	//draw Front position atm 
+	playground[pos.y][pos.x] = 'o';
+	//if length didnt change
+	if (pos.length == length_change)
+	{
+		switch (dir)
+		{
+		case up:
+			playground[pos.y + 1][pos.x] = ' ';
+			break;
+		case down:
+			playground[pos.y - 1][pos.x] = ' ';
+			break;
+		case left:
+			playground[pos.y][pos.x + 1] = ' ';
+			break;
+		case right:
+			playground[pos.y][pos.x - 1] = ' ';
+			break;
+		default:
+			break;
+		}
+	}
 
+	length_change = pos.length;
+	return 0;
+}
 
+struct position {
+	int x;
+	int y;
+};
 
 
 
 int main()
-{
+{								//// Before game starts \\\\
 	//Create Playground
 	char** playground = (char**)malloc(sizeof(char*) * HEIGHT);
 	for (int a = 0; a < HEIGHT; a++)
 	{
 		playground[a] = (char*)malloc(sizeof(char) * WIDTH);
 	}
+	
 
-	//declare
-	int foodx, foody;
+
+	//Declarations 
+	int foodx, foody, length_change = 1;
+	char old_input = 100;
 	sneeekpos pos;
-
 
 	clear_field(playground);
 	generate_food(foodx, foody, playground);
 
-	//Baseline direction
+
+	//Start of Sneak
+	playground[pos.y][pos.x] = 'o';
+
+	//Baseline direction at the start of the game
 	Direction dir = right;
-	//only on Keyboard press
-	if (_kbhit()) {
-		dir = get_input();
-	}
-	movement(pos, dir, playground);
 
-
-	if (death_check(playground, pos))
-	{
-		//gameover screen
-		printf("you lose!");
-	}
-
-
-
-
-	draw_field(playground);
-	//game loop 
+								//// After game starts \\\\
+	
 	while (true)
 	{
 
 
+		//only on Keyboard press
+		if (_kbhit()) {
+			dir = get_input(old_input);
+		}
 
+		movement(pos, dir, playground);
+
+		//Sneak hits the food finally 
+		if (foodx == pos.x && foody == pos.y)
+		{
+			pos.length++;
+			generate_food(foodx, foody, playground);
+			//history of sneak, dependent from length of sneak
+			position* history = (position*)malloc(sizeof(position) * pos.length);
+
+
+		}
+
+		if (death_check(playground, pos))
+		{
+			//gameover screen
+			printf("you lose!");
+			Sleep(5000);
+		}
+
+
+
+
+		sneeek_draw(playground, pos, dir, length_change);
+		draw_field(playground);
+
+
+		Sleep(100);
+		//system("cls");
+		HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+		COORD position = { 0 , 0 };
+		SetConsoleCursorPosition(hConsole, position);
 	}
-
-
-
-
-
-
-
-
 	//Free Memory of Playground
 	for (int a = 0; a < HEIGHT; a++)
 	{
