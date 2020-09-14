@@ -3,8 +3,9 @@
 #include <time.h>
 #include <Windows.h>
 #include <conio.h>
+#include <iostream>
 #define HEIGHT 30
-#define WIDTH 60
+#define WIDTH 75
 #define RUNTIME 100
 
 
@@ -26,25 +27,6 @@ int clear_field(char** playground)
 
 	return 0;
 }
-//Draw Field
-int draw_field(char** playground)
-{
-	char output_string[HEIGHT * (WIDTH + 1) + 1];
-	int b = 0;
-	int a = 0;
-
-	for (int a = 0; a < HEIGHT; a++)
-	{
-		for (b = 0; b < WIDTH; b++)
-		{
-			output_string[a * (WIDTH + 1) + b] = playground[a][b];
-		}
-		output_string[a * (WIDTH + 1) + WIDTH ] = '\n';
-	}
-	output_string[(WIDTH + 1) * HEIGHT ] = '\0';
-	printf("%s", output_string);
-	return 0;
-}
 //Generate Food
 int generate_food(int& foodx, int& foody, char** playground)
 {
@@ -61,30 +43,48 @@ struct sneeekpos {
 	int y = 1;
 	int length = 1;
 };
+//Draw Field
+int draw_field(char** playground, sneeekpos pos)
+{
+	char output_string[HEIGHT * (WIDTH + 1) + 1];
+	int b = 0;
+	int a = 0;
+
+	for (int a = 0; a < HEIGHT; a++)
+	{
+		for (b = 0; b < WIDTH; b++)
+		{
+			output_string[a * (WIDTH + 1) + b] = playground[a][b];
+		}
+		output_string[a * (WIDTH + 1) + WIDTH] = '\n';
+	}
+	output_string[(WIDTH + 1) * HEIGHT] = '\0';
+	printf("%s\nScore: %d", output_string, pos.length);
+	return 0;
+}
 //available directions for the Movement 
-enum Direction
+enum class Direction
 {
 	up, down, left, right
 };
 //movement of sneek
 int movement(sneeekpos& pos, Direction dir, char** playground)
 {
-
 		switch (dir)
 		{
-		case up:
+		case Direction::up:
 			pos.y--;
 			break;
 
-		case left:
+		case Direction::left:
 			pos.x--;
 			break;
 
-		case right:
+		case Direction::right:
 			pos.x++;
 			break;
 
-		case down:
+		case Direction::down:
 			pos.y++;
 			break;
 
@@ -94,7 +94,7 @@ int movement(sneeekpos& pos, Direction dir, char** playground)
 	return 0;
 }
 //input from user
-Direction get_input(char &old_input)
+Direction get_input(Direction dir)
 {
 	while (true)
 	{
@@ -105,51 +105,50 @@ Direction get_input(char &old_input)
 				// W & 8
 		case 119:
 		case 56:
-			if (old_input == 115 || old_input == 50)
+		case 72:
+			if (dir == Direction::down)
 			{
-				return down;
+				return Direction::down;
 			}else
-				old_input = input;
-				return up;
+				return Direction::up;
 
 			// S & 2
 		case 115:
 		case 50:
-			if (old_input == 119 || old_input == 56)
+		case 80:
+			if (dir == Direction::up)
 			{
-				return up;
+				return Direction::up;
 			}
-			old_input = input;
-			return down;
+			return Direction::down;
 
 			// A & 4
 		case 97:
 		case 52:
-			if (old_input == 100 || old_input == 54)
+		case 75:
+			if (dir == Direction::right)
 			{
-				return right;
+				return Direction::right;
 			}
 			else
-			old_input = input;
-			return left;
+			return Direction::left;
 
 			// D & 6
 		case 100:
 		case 54:
-			if (old_input == 97 || old_input == 52)
+		case 77:
+			if (dir == Direction::left)
 			{
-				return left;
+				return Direction::left;
 			}
 			else
-			old_input = input;
-			return right;
+			return Direction::right;
 
 		default:
 			break;
 		}
 	}
 }
-
 // 1 Length sneak drawing 
 int sneeek_draw(char** playground, sneeekpos pos, Direction dir, int &length_change)
 {
@@ -158,12 +157,11 @@ int sneeek_draw(char** playground, sneeekpos pos, Direction dir, int &length_cha
 
 	return 0;
 }
-
+//History of Sneeek position
 struct position {
 	int x;
 	int y;
 };
-
 //see if you failed
 bool death_check(char** playground, sneeekpos pos, position* history)
 {
@@ -182,7 +180,7 @@ bool death_check(char** playground, sneeekpos pos, position* history)
 	}
 	return false;
 }
-
+//Draw the Sneeek and its tail
 int sneeek_tail(sneeekpos pos, position *history, char** playground, int foodx, int foody)
 {
 	for (int a = pos.length; a >= 1; a--)
@@ -216,11 +214,12 @@ int game()
 
 	//Declarations 
 	int foodx, foody, length_change = 1;
-	char old_input = 100;
 	sneeekpos pos;
 
+	//Set Cursor Position to Top Left
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	COORD positioncursor = { 0 , 0 };
+	//Try to hide Cursor (50/50)
 	CONSOLE_CURSOR_INFO info;
 	info.dwSize = 0;
 	info.bVisible = FALSE;
@@ -230,21 +229,20 @@ int game()
 	generate_food(foodx, foody, playground);
 
 	//Baseline direction at the start of the game
-	Direction dir = right;
+	Direction dir = Direction::right;
 
 	//history for the Tail of the sneak declaration 
 	position* history = (position*)malloc(sizeof(position) * HEIGHT * WIDTH);
+
 
 
 								//// After game starts \\\\
 	
 	while (true)
 	{
-
-
-		//only on Keyboard press
+		//User input only on Keypress, without pressing Enter
 		if (_kbhit()) {
-			dir = get_input(old_input);
+			dir = get_input(dir);
 		}
 
 		movement(pos, dir, playground);
@@ -264,15 +262,15 @@ int game()
 		{
 			//gameover screen
 
-			printf("### Game Over - Thanks for playing Sneeek - Press any key### \n# Your Score: %d", pos.length);
-			Sleep(1000);
+			printf("# Game Over - Thanks for playing Sneeek \n# You scored %d from possible %d Points\n# Press any key to start a new game", pos.length, (HEIGHT-2)*(WIDTH-2));
+			Sleep(5000);
+
 			_getch();
 			system("cls");
 			break;
-			
 		}
 		
-		draw_field(playground);
+		draw_field(playground,pos);
 
 		//time between each move 
 		Sleep(RUNTIME);
