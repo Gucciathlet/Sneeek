@@ -5,6 +5,7 @@
 #include <conio.h>
 #define HEIGHT 30
 #define WIDTH 60
+#define RUNTIME 100
 
 
 //Reset Field 
@@ -60,7 +61,7 @@ struct sneeekpos {
 	int y = 1;
 	int length = 1;
 };
-
+//available directions for the Movement 
 enum Direction
 {
 	up, down, left, right
@@ -148,44 +149,13 @@ Direction get_input(char &old_input)
 		}
 	}
 }
-//see if you failed
-bool death_check(char** playground, sneeekpos pos)
-{
-	if (pos.x == 0 || pos.x == WIDTH - 1 || pos.y == 0 || pos.y == HEIGHT - 1)
-	{
-		//gameover
-		return true;
-	}
-	return false;
-}
+
 // 1 Length sneak drawing 
 int sneeek_draw(char** playground, sneeekpos pos, Direction dir, int &length_change)
 {
 	//draw Front position atm 
 	playground[pos.y][pos.x] = 'o';
-	//if length didnt change
-	if (pos.length == length_change)
-	{
-		switch (dir)
-		{
-		case up:
-			playground[pos.y + 1][pos.x] = ' ';
-			break;
-		case down:
-			playground[pos.y - 1][pos.x] = ' ';
-			break;
-		case left:
-			playground[pos.y][pos.x + 1] = ' ';
-			break;
-		case right:
-			playground[pos.y][pos.x - 1] = ' ';
-			break;
-		default:
-			break;
-		}
-	}
 
-	length_change = pos.length;
 	return 0;
 }
 
@@ -194,9 +164,48 @@ struct position {
 	int y;
 };
 
+//see if you failed
+bool death_check(char** playground, sneeekpos pos, position* history)
+{
+	for (int a = 1; a <= pos.length; a++)
+	{
+		if (history[a].x == pos.x && history[a].y == pos.y)
+		{
+			return true;
+		}
 
+		if (pos.x == 0 || pos.x == WIDTH - 1 || pos.y == 0 || pos.y == HEIGHT - 1)
+		{
+			//gameover
+			return true;
+		}
+	}
+	return false;
+}
 
-int main()
+int sneeek_tail(sneeekpos pos, position *history, char** playground, int foodx, int foody)
+{
+	for (int a = pos.length; a >= 1; a--)
+	{
+		history[a].x = history[a - 1].x;
+		history[a].y = history[a - 1].y;
+	}
+	
+	history[0].x = pos.x;
+	history[0].y = pos.y;
+
+	clear_field(playground);
+	playground[foody][foodx] = '$';
+
+	for (int a = 0; a < pos.length; a++)
+	{
+		playground [history[a].y] [history[a].x] = 'o';
+	}
+
+	return 0;
+}
+
+int game()
 {								//// Before game starts \\\\
 	//Create Playground
 	char** playground = (char**)malloc(sizeof(char*) * HEIGHT);
@@ -204,23 +213,28 @@ int main()
 	{
 		playground[a] = (char*)malloc(sizeof(char) * WIDTH);
 	}
-	
-
 
 	//Declarations 
 	int foodx, foody, length_change = 1;
 	char old_input = 100;
 	sneeekpos pos;
 
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	COORD positioncursor = { 0 , 0 };
+	CONSOLE_CURSOR_INFO info;
+	info.dwSize = 0;
+	info.bVisible = FALSE;
+	SetConsoleCursorInfo(hConsole, &info);
+
 	clear_field(playground);
 	generate_food(foodx, foody, playground);
 
-
-	//Start of Sneak
-	playground[pos.y][pos.x] = 'o';
-
 	//Baseline direction at the start of the game
 	Direction dir = right;
+
+	//history for the Tail of the sneak declaration 
+	position* history = (position*)malloc(sizeof(position) * HEIGHT * WIDTH);
+
 
 								//// After game starts \\\\
 	
@@ -240,38 +254,51 @@ int main()
 		{
 			pos.length++;
 			generate_food(foodx, foody, playground);
-			//history of sneak, dependent from length of sneak
-			position* history = (position*)malloc(sizeof(position) * pos.length);
-
-
 		}
 
-		if (death_check(playground, pos))
+		sneeek_tail(pos, history, playground, foodx,foody);
+
+
+		//Death check if you hit the wall
+		if (death_check(playground, pos, history))
 		{
 			//gameover screen
-			printf("you lose!");
-			Sleep(5000);
+
+			printf("### Game Over - Thanks for playing Sneeek - Press any key### \n# Your Score: %d", pos.length);
+			Sleep(1000);
+			_getch();
+			system("cls");
+			break;
+			
 		}
-
-
-
-
-		sneeek_draw(playground, pos, dir, length_change);
+		
 		draw_field(playground);
 
-
-		Sleep(100);
-		//system("cls");
-		HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-		COORD position = { 0 , 0 };
-		SetConsoleCursorPosition(hConsole, position);
+		//time between each move 
+		Sleep(RUNTIME);
+		//Cursor Position to top left, drastically improves the visual effect
+		SetConsoleCursorPosition(hConsole, positioncursor);
 	}
+
+
 	//Free Memory of Playground
 	for (int a = 0; a < HEIGHT; a++)
 	{
 		free(playground[a]);
 	}
 	free(playground);
+	free(history);
+	
+	return 0;
+}
+
+
+int main()
+{
+	while (true)
+	{
+		game();
+	}
 
 	return 0;
 }
