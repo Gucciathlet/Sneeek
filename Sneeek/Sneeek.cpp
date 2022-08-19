@@ -149,6 +149,7 @@ Direction get_input(Direction dir)
 		}
 	}
 }
+
 // 1 Length sneak drawing 
 int sneeek_draw(char** playground, sneeekpos pos, Direction dir, int &length_change)
 {
